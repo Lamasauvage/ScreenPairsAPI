@@ -29,10 +29,6 @@ SECRET_KEY = config("SECRET_KEY")
 TMDB_API_KEY = config("TMDB_API_KEY", default="")
 TMDB_BEARER_TOKEN = config("TMDB_BEARER_TOKEN", default="")
 
-ACTOR_RATE = config("ACTOR_RATE", default="10/10s")
-MOVIES_RATE = config("MOVIES_RATE", default="5/10s")
-
-
 
 ALLOWED_HOSTS = []
 
@@ -48,7 +44,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
-    'django_ratelimit',
     'api',
 ]
 
@@ -62,6 +57,14 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': '/tmp/django_cache',
+    }
+}
+
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",

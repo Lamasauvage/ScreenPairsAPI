@@ -31,21 +31,44 @@ def search_actors(query):
 
 
 def get_actor_info(actor_name):
-    url = f"https://api.themoviedb.org/3/search/person?query={actor_name}"
+    search_url = f"https://api.themoviedb.org/3/search/person?query={actor_name}"
     try:
-        response = requests.get(url, headers=HEADERS, timeout=5)
-        response.raise_for_status()
-        data = response.json()
+        search_response = requests.get(search_url, headers=HEADERS, timeout=5)
+        search_response.raise_for_status()
+        search_data = search_response.json()
     except requests.RequestException as e:
-        logger.warning(f"TMDB get_actor_info error: {e}")
+        logger.warning(f"TMDB get_actor_info search error: {e}")
         return None
 
-    if data.get('results'):
+    results = search_data.get('results')
+    if not results:
+        return None
+
+    actor_data = results[0]
+    actor_id = actor_data['id']
+
+    detail_url = f"https://api.themoviedb.org/3/person/{actor_id}/external_ids"
+    try:
+        detail_response = requests.get(detail_url, headers=HEADERS, timeout=5)
+        detail_response.raise_for_status()
+        detail_data = detail_response.json()
+    except requests.RequestException as e:
+        logger.warning(f"TMDB get_actor_info detail error: {e}")
         return {
-            'id': data['results'][0]['id'],
-            'image_path': data['results'][0].get('profile_path')
+            'id': actor_id,
+            'image_path': actor_data.get('profile_path'),
+            'imdb_url': None
         }
-    return None
+
+    imdb_id = detail_data.get('imdb_id')
+    imdb_url = f"https://www.imdb.com/name/{imdb_id}/" if imdb_id else None
+
+    return {
+        'id': actor_id,
+        'image_path': actor_data.get('profile_path'),
+        'imdb_url': imdb_url
+    }
+
 
 
 def get_movies_by_actor(actor_id):
@@ -60,8 +83,12 @@ def get_movies_by_actor(actor_id):
 
     return [{
         'id': movie['id'],
-        'character': movie.get('character')
+        'title': movie.get('title'),
+        'release_date': movie.get('release_date'),
+        'character': movie.get('character'),
+        'genre_ids': movie.get('genre_ids', [])
     } for movie in data.get('cast', [])]
+
 
 
 def fetch_common_movie_details(movie_id, actor1_character, actor2_character):
@@ -87,6 +114,7 @@ def fetch_common_movie_details(movie_id, actor1_character, actor2_character):
         'id': movie_id,
         'imdb_url': imdb_url,
         'title': data.get('title'),
+        'genres': data.get('genres', []),
         'poster_path': data.get('poster_path'),
         'release_year': data.get('release_date', '').split('-')[0],
         'directors': directors,
@@ -105,7 +133,7 @@ def find_common_movies(actor1_name, actor2_name):
     actor2_info = get_actor_info(actor2_name)
 
     if not actor1_info or not actor2_info:
-        return []
+        return [], actor1_info or {}, actor2_info or {}
 
     actor1_movies = get_movies_by_actor(actor1_info['id'])
     actor2_movies = get_movies_by_actor(actor2_info['id'])
@@ -122,7 +150,10 @@ def find_common_movies(actor1_name, actor2_name):
 
         movie_details = fetch_common_movie_details(common_id, actor1_character, actor2_character)
         if movie_details:
-            movie_details['characters'] = {actor1_name: actor1_character, actor2_name: actor2_character}
+            movie_details['characters'] = {
+                actor1_name: actor1_character,
+                actor2_name: actor2_character,
+            }
             common_movies.append(movie_details)
 
-    return common_movies
+    return common_movies, actor1_info, actor2_info

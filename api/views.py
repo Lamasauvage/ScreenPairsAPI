@@ -2,7 +2,6 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from services.tmdb import find_common_movies, search_actors
 
-
 @api_view(['GET'])
 def actor_autocomplete(request):
     query = request.GET.get('query', '')
